@@ -1,0 +1,64 @@
+@{
+    ViewBag.Title = "User List";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+    }
+
+    <form id="userForm" method="post">
+        <div class="d-flex justify-content-between mb-3">
+            <div>
+                <button type="submit" formaction="/ManageUser/BlockUsers" class="btn btn-warning me-2" title="Prevent selected users from logging in">Block</button>
+                <button type="submit" formaction="/ManageUser/UnblockUsers" class="btn btn-success me-2" title="Restore access for selected users">Unblock</button>
+                <button type="submit" formaction="/ManageUser/DeleteUsers" class="btn btn-danger me-2" title="Permanently remove selected users">Delete</button>
+            </div>
+        </div>
+
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th scope="col">
+                        <input type="checkbox" id="selectAll" />
+                    </th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Last Seen</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in ViewBag.Users)
+                {
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="user-checkbox" name="selectedEmails" value="@item.Email" />
+                        </td>
+                        @if (item.IsBlocked)
+                        {
+                            <td><span style="text-decoration: line-through">@item.Name</span></td>
+                            <td><span style="text-decoration: line-through">@item.Email</span></td>
+                        }
+                        else
+                        {
+                            <td>@item.Name</td>
+                            <td>@item.Email</td>
+                        }
+                        <td>@item.LastLoginDate?.ToString("g")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById("selectAll").addEventListener("change", function () {
+            const checkboxes = document.querySelectorAll(".user-checkbox");
+            checkboxes.forEach(cb => cb.checked = this.checked);
+        });
+    </script>
+}

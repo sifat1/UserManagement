@@ -10,5 +10,8 @@ public class DBContext : IdentityDbContext<UserDetails>
     {
         base.OnModelCreating(builder);
         
+        builder.Entity<UserDetails>()
+        .HasIndex(u => u.Email)
+        .IsUnique();
     }
 }

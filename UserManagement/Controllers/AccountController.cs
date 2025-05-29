@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using UserManagement.Models;
 using UserManagement.ViewModels;
@@ -11,41 +12,42 @@ public class AccountController : Controller
     private readonly UserManager<UserDetails> _userManager;
     private readonly SignInManager<UserDetails> _signInManager;
     private readonly DBContext _db;
-    private readonly ILogger<AccountController> _logger;
+    private readonly UserService _userservice;
 
-    public AccountController(
-        UserManager<UserDetails> userManager,
-        SignInManager<UserDetails> signInManager,
-        DBContext db,
-        ILogger<AccountController> logger)
+    public AccountController(UserManager<UserDetails> userManager,
+    SignInManager<UserDetails> signInManager, UserService userservice, DBContext db,
+    ILogger<AccountController> logger)
     {
         _userManager = userManager;
         _signInManager = signInManager;
+        _userservice = userservice;
         _db = db;
-        _logger = logger;
     }
 
     [HttpGet]
     public IActionResult Register() => View();
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Register([Bind("Name,Email,Password,ConfirmPassword")] RegisterViewModel model)
+    public async Task<IActionResult> Register(RegisterViewModel model)
     {
-        _logger.LogInformation("Registering user with email: {Email}", model?.Email);
-        if (model == null)
+        if (!ModelState.IsValid)
         {
-            _logger.LogError("Register model is null");
-            return BadRequest("Invalid registration data.");
+            ModelState.AddModelError(string.Empty, "Submitted Empty/Invalid form.");
+            return View(model);
         }
-        
-        if (!ModelState.IsValid) return View(model);
+
+        if (_userservice.IfUserExists(model.Email))
+        {
+            ModelState.AddModelError(string.Empty, "User with this Email already exists.");
+            return View(model);
+        }
 
         var user = new UserDetails
         {
             Name = model.Name,
             Email = model.Email,
-            UserName = model.Email,
             IsBlocked = false,
+            UserName = model.Email,
             LastLoginDate = DateTime.UtcNow
         };
 
@@ -53,15 +55,13 @@ public class AccountController : Controller
 
         if (result.Succeeded)
         {
-            _logger.LogInformation("User registered successfully: {Email}", model.Email);
             await _signInManager.SignInAsync(user, isPersistent: false);
-            return RedirectToAction("Index", "Home");
+            return RedirectToAction("ShowUsers", "ManageUser");
         }
 
         foreach (var error in result.Errors)
         {
             ModelState.AddModelError(string.Empty, error.Description);
-            _logger.LogWarning("Identity error: {Code} - {Description}", error.Code, error.Description);
         }
 
         return View(model);
@@ -77,17 +77,25 @@ public class AccountController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginViewModel model, string? returnUrl = null)
     {
-        if (!ModelState.IsValid) return View(model);
+        if(!ModelState.IsValid) return View(model);
 
-        var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, lockoutOnFailure: false);
+        if(!_userservice.IfUserExists(model.Email))
+        {
+            ModelState.AddModelError(string.Empty,"User doesn't exsist / been blocked");
+            return View(model);
+        }
+
+        var result = await _signInManager.PasswordSignInAsync(
+            model.Email, model.Password, model.RememberMe, lockoutOnFailure: false);
 
         if (result.Succeeded)
         {
-            _logger.LogInformation("User logged in: {Email}", model.Email);
-            return Redirect(returnUrl ?? Url.Action("Index", "Home")!);
+            await _db.Users.Where(u => u.Email == model.Email).ExecuteUpdateAsync(setters => 
+                    setters.SetProperty(u => u.LastLoginDate, DateTime.UtcNow));
+
+            return Redirect(returnUrl ?? Url.Action("ShowUsers", "ManageUser")!);
         }
 
-        _logger.LogWarning("Failed login attempt for user: {Email}", model.Email);
         ModelState.AddModelError(string.Empty, "Invalid login attempt");
         return View(model);
     }
@@ -96,7 +104,6 @@ public class AccountController : Controller
     public async Task<IActionResult> Logout()
     {
         await _signInManager.SignOutAsync();
-        _logger.LogInformation("User logged out.");
-        return RedirectToAction("Index", "Home");
+        return RedirectToAction("Login", "Account");
     }
 }

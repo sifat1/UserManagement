@@ -1,18 +1,20 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using UserManagement.Models;
-using Npgsql; // Add this to use NpgsqlConnectionStringBuilder
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 
-// Get and parse DATABASE_URL
-var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-if (string.IsNullOrEmpty(databaseUrl))
-    throw new Exception("DATABASE_URL environment variable is not set.");
 
-// Convert to Npgsql connection string
-var connectionString = ConvertDatabaseUrlToNpgsql(databaseUrl);
+var rawUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+if (string.IsNullOrEmpty(rawUrl))
+    throw new Exception("DATABASE_URL is not set");
+
+
+rawUrl = rawUrl.Replace("postgresql://", "postgres://");
+
+var connectionString = ConvertDatabaseUrlToNpgsql(rawUrl);
 
 builder.Services.AddDbContext<DBContext>(options =>
     options.UseNpgsql(connectionString));
@@ -49,6 +51,7 @@ app.MapControllerRoute(
     pattern: "{controller=ManageUser}/{action=ShowUsers}/{id?}");
 
 app.Run();
+
 string ConvertDatabaseUrlToNpgsql(string databaseUrl)
 {
     var uri = new Uri(databaseUrl);
@@ -60,7 +63,7 @@ string ConvertDatabaseUrlToNpgsql(string databaseUrl)
         Port = uri.Port,
         Username = userInfo[0],
         Password = userInfo[1],
-        Database = uri.AbsolutePath.Trim('/'),
+        Database = uri.AbsolutePath.TrimStart('/'),
         SslMode = SslMode.Require,
         TrustServerCertificate = true
     }.ToString();

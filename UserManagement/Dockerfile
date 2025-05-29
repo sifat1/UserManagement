@@ -1,22 +1,19 @@
-# Use the official .NET SDK image for building the application
+# Stage 1: Build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-WORKDIR /app
+WORKDIR /src
 
-# Copy csproj and restore as distinct layers
-COPY *.csproj ./
-RUN dotnet restore
+# Copy the solution and project files
+COPY UserManagement/UserManagement.csproj ./UserManagement/
+RUN dotnet restore ./UserManagement/UserManagement.csproj
 
-# Copy the remaining source code and build the application
-COPY . ./
-RUN dotnet publish -c Release -o out
+# Copy the rest of the code
+COPY UserManagement/ ./UserManagement/
+WORKDIR /src/UserManagement
+RUN dotnet publish -c Release -o /app/publish
 
-# Use the official .NET runtime image for running the application
+# Stage 2: Run
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
-COPY --from=build /app/out ./
+COPY --from=build /app/publish .
 
-# Expose port 80
-EXPOSE 80
-
-# Set the entry point for the container
 ENTRYPOINT ["dotnet", "UserManagement.dll"]

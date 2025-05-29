@@ -6,7 +6,7 @@ using Npgsql;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 
-// Parse DATABASE_URL into Npgsql format with fallback to appsettings
+
 var rawUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 var connectionString = string.IsNullOrEmpty(rawUrl) 
     ? builder.Configuration.GetConnectionString("DefaultConnection")
@@ -15,11 +15,10 @@ var connectionString = string.IsNullOrEmpty(rawUrl)
 if (string.IsNullOrEmpty(connectionString))
     throw new Exception("No database connection configuration found");
 
-// Register your DB context
 builder.Services.AddDbContext<DBContext>(options =>
     options.UseNpgsql(connectionString));
 
-// Configure Identity with relaxed password rules (for development)
+
 builder.Services.AddDefaultIdentity<UserDetails>(options =>
 {
     options.Password.RequireDigit = false; 
@@ -32,31 +31,31 @@ builder.Services.AddDefaultIdentity<UserDetails>(options =>
 })
 .AddEntityFrameworkStores<DBContext>();
 
-// Configure cookie settings
+
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login"; 
 });
 
-// Register custom services
+
 builder.Services.AddScoped<UserService>();
 
 var app = builder.Build();
 
-// Middleware pipeline
+
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Routing
+
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=ManageUser}/{action=ShowUsers}/{id?}");
 
 app.Run();
 
-// Convert Heroku/Render-style DATABASE_URL to Npgsql format
+
 string ConvertDatabaseUrlToNpgsql(string databaseUrl)
 {
     try

@@ -8,16 +8,16 @@ builder.Services.AddControllersWithViews();
 
 
 var rawUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-var connectionString = string.IsNullOrEmpty(rawUrl) 
-    ? builder.Configuration.GetConnectionString("DefaultConnection")
-    : ConvertDatabaseUrlToNpgsql(rawUrl);
 
-if (string.IsNullOrEmpty(connectionString))
-    throw new Exception("No database connection configuration found");
 
 builder.Services.AddDbContext<DBContext>(options =>
-    options.UseNpgsql(connectionString));
-
+    options.UseNpgsql(rawUrl, npgsqlOptions =>
+    {
+        npgsqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorCodesToAdd: null);
+    }));
 
 builder.Services.AddDefaultIdentity<UserDetails>(options =>
 {
@@ -31,62 +31,23 @@ builder.Services.AddDefaultIdentity<UserDetails>(options =>
 })
 .AddEntityFrameworkStores<DBContext>();
 
-
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login"; 
 });
 
-
 builder.Services.AddScoped<UserService>();
 
 var app = builder.Build();
 
-
 app.UseStaticFiles();
+
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
-
 
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=ManageUser}/{action=ShowUsers}/{id?}");
 
 app.Run();
-
-
-string ConvertDatabaseUrlToNpgsql(string databaseUrl)
-{
-    try
-    {
-        // Allow both postgresql:// and postgres://
-        databaseUrl = databaseUrl.Replace("postgresql://", "postgres://");
-        
-        var uri = new Uri(databaseUrl);
-        var userInfo = uri.UserInfo.Split(':');
-
-        if (userInfo.Length != 2)
-            throw new Exception("DATABASE_URL must contain username and password");
-
-        var builder = new NpgsqlConnectionStringBuilder
-        {
-            Host = uri.Host,
-            Username = userInfo[0],
-            Password = userInfo[1],
-            Database = uri.AbsolutePath.TrimStart('/'),
-            SslMode = SslMode.Require,
-            TrustServerCertificate = true
-        };
-        if (uri.Port != -1)
-        {
-            builder.Port = uri.Port;
-        }
-
-        return builder.ToString();
-    }
-    catch (Exception ex)
-    {
-        throw new Exception("Failed to parse DATABASE_URL", ex);
-    }
-}

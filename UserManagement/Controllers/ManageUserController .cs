@@ -14,12 +14,12 @@ namespace UserManagement.Controllers
     public class ManageUserController : Controller
     {
         private readonly DBContext _db;
-        private readonly ILogger<ManageUserController> _logger;
+        private readonly UserManager<UserDetails> _userManager;
 
-        public ManageUserController(DBContext dbContext, ILogger<ManageUserController> logger)
+        public ManageUserController(DBContext dbContext, UserManager<UserDetails> userManager)
         {
             _db = dbContext;
-            _logger = logger;
+            _userManager = userManager;
         }
 
         [HttpGet]
@@ -71,7 +71,6 @@ namespace UserManagement.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error blocking users");
                 ModelState.AddModelError(string.Empty, "Failed to block users. Please try again.");
             }
 
@@ -98,7 +97,6 @@ namespace UserManagement.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error unblocking users");
                 ModelState.AddModelError(string.Empty,"Failed to unblock users. Please try again.");
             }
 

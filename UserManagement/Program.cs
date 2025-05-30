@@ -40,6 +40,12 @@ builder.Services.AddScoped<UserService>();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
+}
+
 app.UseStaticFiles();
 
 app.UseRouting();

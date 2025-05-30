@@ -52,32 +52,6 @@ namespace UserManagement.Controllers
         {
             if (selectedEmails == null || !selectedEmails.Any())
             {
-                ModelState.AddModelError(string.Empty,"No users selected for blocking.");
-                return RedirectToAction("ShowUsers");
-            }
-
-            try
-            {
-                await _db.Users
-                    .Where(u => selectedEmails.Contains(u.Email) && !u.IsBlocked)
-                    .ExecuteUpdateAsync(setters => setters.SetProperty(u => u.IsBlocked, u => true));
-
-                TempData["SuccessMessage"]= $"Successfully blocked {selectedEmails.Count} user(s).";
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error blocking users");
-                ModelState.AddModelError(string.Empty,"Failed to block users. Please try again.");
-            }
-
-            return RedirectToAction("ShowUsers");
-        }
-
-        [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> BlockUsers([FromForm] List<string> selectedEmails)
-        {
-            if (selectedEmails == null || !selectedEmails.Any())
-            {
                 ModelState.AddModelError(string.Empty, "No users selected for blocking.");
                 return RedirectToAction("ShowUsers");
             }
@@ -104,6 +78,32 @@ namespace UserManagement.Controllers
             return RedirectToAction("ShowUsers");
         }
 
+
+        [HttpPost , ValidateAntiForgeryToken]
+        public async Task<IActionResult> UnblockUsers([FromForm] List<string> selectedEmails)
+        {
+            if (selectedEmails == null || !selectedEmails.Any())
+            {
+                ModelState.AddModelError(string.Empty,"No users selected for unblocking.");
+                return RedirectToAction("ShowUsers");
+            }
+
+            try
+            {
+                int updatedCount = await _db.Users
+                    .Where(u => selectedEmails.Contains(u.Email) && u.IsBlocked)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(u => u.IsBlocked, u => false));
+
+                TempData["SuccessMessage"] = $"Successfully unblocked {updatedCount} user(s).";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error unblocking users");
+                ModelState.AddModelError(string.Empty,"Failed to unblock users. Please try again.");
+            }
+
+            return RedirectToAction("ShowUsers");
+        }
 
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteUsers([FromForm] List<string> selectedEmails)

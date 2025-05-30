@@ -15,11 +15,14 @@ namespace UserManagement.Controllers
     {
         private readonly DBContext _db;
         private readonly UserManager<UserDetails> _userManager;
+        private readonly SignInManager<UserDetails> _signInManager;
 
-        public ManageUserController(DBContext dbContext, UserManager<UserDetails> userManager)
+        public ManageUserController(DBContext dbContext,
+         UserManager<UserDetails> userManager, SignInManager<UserDetails> signInManager)
         {
             _db = dbContext;
             _userManager = userManager;
+            _signInManager = signInManager;
         }
 
         [HttpGet]
@@ -58,12 +61,17 @@ namespace UserManagement.Controllers
 
             try
             {
+                var currentUserEmail = User.Identity?.Name;
                 await _db.Users.Where(u => selectedEmails.Contains(u.Email) && !u.IsBlocked)
                     .ExecuteUpdateAsync(setters => setters.SetProperty(u => u.IsBlocked, u => true));
 
                 var users = _userManager.Users.Where(u => selectedEmails.Contains(u.Email));
                 foreach (var user in users)
                 {
+                    if(currentUserEmail == user.Email)
+                    {
+                        await _signInManager.SignOutAsync();
+                    }
                     await _userManager.UpdateSecurityStampAsync(user);
                 }
 

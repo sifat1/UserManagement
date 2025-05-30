@@ -62,7 +62,7 @@ namespace UserManagement.Controllers
             try
             {
                 var currentUserEmail = User.Identity?.Name;
-                await _db.Users.Where(u => selectedEmails.Contains(u.Email) && !u.IsBlocked)
+                int BlockedCount = await _db.Users.Where(u => selectedEmails.Contains(u.Email) && !u.IsBlocked)
                     .ExecuteUpdateAsync(setters => setters.SetProperty(u => u.IsBlocked, u => true));
 
                 var users = _userManager.Users.Where(u => selectedEmails.Contains(u.Email));
@@ -75,7 +75,7 @@ namespace UserManagement.Controllers
                     await _userManager.UpdateSecurityStampAsync(user);
                 }
 
-                TempData["SuccessMessage"] = $"Successfully blocked {selectedEmails.Count} user(s).";
+                TempData["SuccessMessage"] = $"Successfully blocked {BlockedCount} user(s).";
             }
             catch (Exception ex)
             {
